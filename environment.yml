@@ -9,3 +9,7 @@ dependencies:
   - beautifulsoup4==4.9.*
   - lxml==4.6.*
   - requests==2.25.1
+  - jupyter==1.0.0
+  - ipykernel
+  - ipython
+  - nbconvert

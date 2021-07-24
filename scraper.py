@@ -431,6 +431,24 @@ def re_order_sections(all_sections):
     return(reordered)
 
 
+def write_sections(debate_tags, date_string, write=True):
+    sections = []
+    for section in debate_tags:
+        sub_section = []
+        for node in section:
+            if node.name == "ul":
+                sub_section.append(node.name)
+            else:
+                sub_section.append(node["class"][0])
+        sections.append(sub_section)
+
+    if write:
+        with open(f"sections_{date_string}.json", "w") as f:
+            json.dump(sections, f, indent=2, sort_keys=True)
+
+    return sections
+
+
 def scrape_hansard_report(date, date2=None):
     if date2 is None:
         date2 = date
@@ -461,7 +479,9 @@ def scrape_hansard_report(date, date2=None):
         for b2 in b.find_all("body")
     ]
 
+    write_sections(debate_tags, date_string)
     debate_tags = re_order_sections(debate_tags)
+
 
     for section in debate_tags:
         if not section:
