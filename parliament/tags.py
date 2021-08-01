@@ -1,4 +1,10 @@
+import functools
+from bs4 import element
+
 from parliament.report_requests import request_report_from_tuple
+from parliament.utils import name_attr_is_time, parse_time_attr, update_dict
+from parliament.parsing import parse_tag_text
+from parliament.structure import lookup_tag_type
 
 
 def flatten(tag) -> str:
@@ -57,83 +63,51 @@ def initial_parse(part1, part2=None):
     return preface, html_tags, tag_names, tag_names_flat
 
 
-def extract_group_order(tag_names, group_order=dict()):
-    start_tags = [section[0] for section in tag_names]
-    n_tags = len(start_tags)
+def get_tag_as_dict(bs4_tag):
+    parent_attr = [bs4_tag.attrs.copy()]
+    children_attr = [
+        child_tag.attrs.copy() for child_tag in bs4_tag.children
+        if isinstance(child_tag, element.Tag)
+    ]
+    children_attr = parent_attr + children_attr
+    children_attr = [a for a in children_attr if a]
 
-    for i, tag in enumerate(start_tags):
-        if i + 1 == n_tags:
-            break
+    if children_attr is None or not children_attr:
+        return {}
 
-        group_order.setdefault(tag, {"first": {}, "second": {}})
-
-        # find what tags come after this current one
-        next_tag = start_tags[i+1]
-        next_next = next_tag
-        next_count = 0
-        j = i+1
-        while j < n_tags and next_next == next_tag:
-            next_next = start_tags[j]
-            if next_tag == next_next:
-                next_count += 1
-            j += 1
-
-        # increment counts
-        group_order[tag]["first"].setdefault(
-            next_tag,
-            {
-                "count": 0,
-                "consequetive": []
-            })
-        group_order[tag]["second"].setdefault(next_next, 0)
-
-        # increment counts
-        group_order[tag]["first"][next_tag]["count"] += 1
-        group_order[tag]["first"][next_tag]["consequetive"].append(next_count)
-        group_order[tag]["second"][next_next] += 1
-    return group_order
+    return functools.reduce(update_dict, children_attr)
 
 
-def extract_tag_counts(flat_tags,
-                       start_tags=dict(), 
-                       unique_tags=dict(),
-                       tag_counts=dict()):
+def parse_tags_to_dict(html_tags, return_bs4_tag=False):
+    if not isinstance(html_tags, list):
+        raise RuntimeError("html tags needs to be a list of bs4 tags...")
 
-    add_to_start_tag = True
+    if isinstance(html_tags[0], list):
+        html_tags = [tag for section in html_tags for tag in section]
 
-    for tag in flat_tags:
-        if add_to_start_tag and tag != "Ending":
-            start_tags.setdefault(tag, 0)
-            start_tags[tag] += 1
-            add_to_start_tag = False
+    parsed_tags = []
+    for tag in html_tags:
+        tag_dict = get_tag_as_dict(tag)
+        tag_dict.update(parse_tag_text(tag))
 
-        elif tag in ["Ending", "EndOfSection"]:
-            add_to_start_tag = True
-            continue
+        if tag.name == "ul":
+            tag_dict["class"] = "List"
 
-        # add tag to unique tag list
-        unique_tags.add(tag)
+        for key, val in tag_dict.items():
+            if isinstance(val, list) and len(val) == 1: 
+                tag_dict[key] = val[0]
 
-        # add to counter
-        tag_counts.setdefault(tag, 0)
-        tag_counts[tag] += 1
+        # check if name is actually time stamp
+        name_part = tag_dict.get("name", "")
+        if name_attr_is_time(name_part):
+            tag_dict.update(parse_time_attr(name_part))
+            del tag_dict["name"]
 
-    return start_tags, unique_tags, tag_counts
+        tag_dict["tag_id"] = lookup_tag_type(tag)
 
+        if return_bs4_tag:
+            tag_dict["raw_tag"] = tag
 
-def find_tag_structure(report_tuples):
-    start_tags = dict()
-    unique_tags = set()
-    tag_counts = dict()
-    group_order = dict()
+        parsed_tags.append(tag_dict)
 
-    for report_tuple in report_tuples:
-        if isinstance(report_tuple, tuple):
-            results = initial_parse(report_tuple[0], report_tuple[1])
-        else:
-            results = initial_parse(report_tuple)
-
-        extract_tag_counts(results[3], start_tags, unique_tags, tag_counts)
-        extract_group_order(results[2], group_order)
-
-    return start_tags, unique_tags, tag_counts, group_order
+    return parsed_tags
