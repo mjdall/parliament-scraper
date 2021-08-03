@@ -89,9 +89,7 @@ def parse_tags_to_dict(html_tags, return_bs4_tag=False):
     for tag in html_tags:
         tag_dict = get_tag_as_dict(tag)
         tag_dict.update(parse_tag_text(tag))
-
-        if tag.name == "ul":
-            tag_dict["class"] = "List"
+        tag_dict["class"] = get_tag_id(tag)
 
         for key, val in tag_dict.items():
             if isinstance(val, list) and len(val) == 1: 
@@ -108,6 +106,8 @@ def parse_tags_to_dict(html_tags, return_bs4_tag=False):
         if return_bs4_tag:
             tag_dict["raw_tag"] = tag
 
+        if "class" not in tag_dict:
+            tag_dict["class"]  = tag.name
         parsed_tags.append(tag_dict)
 
     return parsed_tags

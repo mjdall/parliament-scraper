@@ -2,7 +2,7 @@ import re
 from pprint import pprint
 
 from parliament.tags import parse_tags_to_dict
-from parliament.structure import BILL_DEBATE, State, INTERJECTION, QUESTION, ANSWER, CONT_SPEECH, SPEECH, NOTE, LIST, VOTE, DEBATE
+from parliament.structure import BILL_DEBATE, State, INTERJECTION, QUESTION, ANSWER, CONT_SPEECH, SPEECH, NOTE, LIST, VOTE, DEBATE, lookup_tag_type
 
 
 def parse_speaker_brackets(speaker_text):
@@ -123,7 +123,10 @@ def q_and_a_grouper(parsed_tags):
                     "follow_up_questions": [],
                 }
                 del tag["text"]
-                tag.update(parse_qa_speaker(tag["speaker"]))
+
+                tag_speaker = tag.get("speaker",)
+                if tag_speaker is not None:
+                    tag.update(parse_qa_speaker(tag_speaker))
                 current_question_group.update(tag)
 
             elif tag_class == "SubsAnswer":
@@ -248,7 +251,7 @@ def parse_all_html(html_tags):
         parsed_section.append({ "class": "EndOfSection" })
         flat_parsed_tags += parsed_section
 
-    tag_classes = [tag["class"] for tag in flat_parsed_tags]
+    tag_classes = [tag.get("class", "note") for tag in flat_parsed_tags]
     curr_state = State(tag_classes[0], ignore_validation=True)
 
     resturctured_tags = []

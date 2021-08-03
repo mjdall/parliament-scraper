@@ -40,7 +40,7 @@ TAG_LOOKUP = {
     LIST: ["ul", "List"],
     BILL_DEBATE: ["BillDebate"],
     DEBATE: ["Debate", "SubDebate", "DebateDebate"],
-    DEBATE_ALONE: ["Debatealone"],
+    DEBATE_ALONE: ["Debatealone", "SubDebatealone"],
     EOS: ["EndOfSection"],
     MARGIN: ["MarginHeading", "IndentMarginalone", "IndentMargin"],
     MARGIN_NEXT: ["IndentMarginTextFollowing"],
@@ -208,7 +208,10 @@ class State():
 def lookup_tag_type(tag):
     tag_name = tag.name
     if tag_name != "ul":
-        tag_name = tag["class"]
+        try:
+            tag_name = tag["class"]
+        except:
+            tag_name = tag.name
 
     if isinstance(tag_name, list):
         tag_name = tag_name[0]
