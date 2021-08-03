@@ -15,6 +15,7 @@ Web scraper for scraping [Hansard Reports](https://www.parliament.nz/en/pb/hansa
 Install conda environment with `conda env create -f environment.yml`, 
 and then activate it with `conda activate parliament_scraper`.
 
+**OUTDATED**
 Call the scraper with: `python scraper.py <DATE1> <optional: DATE2>`
 
 Date format is YYYYMMDD, a possible 2 dates are passed, check the URL of the
@@ -30,6 +31,13 @@ The scraper will write to a file called `debate_DATE1_DATE2.json` in the current
 Check `example_out.json` for an example of the output format.
 
 ## State
-* Needs work, can ony scrape `20210708` currently
-* Needs to be more robust to tag structure
+* ~~Needs work, can ony scrape `20210708` currently~~
+* ~~Needs to be more robust to tag structure~~
+* Update: Scraper code working more robust to tag structure,
+    see `notebooks/parser.ipynb`, `scraper.py` needs to be updated with changes
+* BillDebate -> Debate -> Subdebate structure doesn't nest
+    when parent is BillDebate
 * Code needs better formatting and structure
+    * `parliament` module and submodules need better naming and documentation
+* All report links can be crawled, see `notebooks/crawler.ipynb`
+* Vote parsing needs to be properly re-implemented

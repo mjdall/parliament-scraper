@@ -2,7 +2,7 @@ import re
 from pprint import pprint
 
 from parliament.tags import parse_tags_to_dict
-from parliament.structure import State, INTERJECTION, QUESTION, ANSWER, CONT_SPEECH, SPEECH, NOTE
+from parliament.structure import BILL_DEBATE, State, INTERJECTION, QUESTION, ANSWER, CONT_SPEECH, SPEECH, NOTE, LIST, VOTE, DEBATE
 
 
 def parse_speaker_brackets(speaker_text):
@@ -43,10 +43,26 @@ def fill_speaker(parsed_tags):
                 current_speaker = tag_speaker
                 continue
 
-            if tag_id in [SPEECH, CONT_SPEECH]:
+            if tag_id in [SPEECH, CONT_SPEECH] and current_speaker:
                 tag["speaker"] = current_speaker
                 tag["filled_speaker"] = True
 
+    return parsed_tags
+
+
+def concat_list_tags(parsed_tags):
+    for i, section in enumerate(parsed_tags):
+        if not any([tag["class"] == LIST for tag in section]):
+            continue
+        reconstructed = []
+        prev = section[0]
+        for tag in section[1:]:
+            if tag["class"] == LIST:
+                prev["text"] += tag["text"]
+                continue
+            reconstructed.append(tag)
+            prev = tag
+        parsed_tags[i] = reconstructed
     return parsed_tags
 
 
@@ -145,6 +161,85 @@ def q_and_a_grouper(parsed_tags):
     return parsed_tags
 
 
+def get_debate_priority(tag_class):
+    mapping = {
+        "BillDebate": 4,
+        "Debate": 3,
+        "SubDebate": 2,
+        "Debatealone": 1,
+    }
+
+    return mapping.get(tag_class, -1)
+
+
+def bill_debate_grouper(parsed_tags):
+    for i, section in enumerate(parsed_tags):
+        if not any([tag["tag_id"] == DEBATE for tag in section]):
+            continue
+
+        bill_debates = []
+        parent_debate = {}
+        child_debate = {}
+        current_priority = 0
+        for _, tag in enumerate(section):
+            tag_class = tag["class"]
+            tag_id = tag["tag_id"]
+            is_debate_tag = "debate" in tag_class.lower()
+            if not is_debate_tag and not parent_debate:
+                bill_debates.append(tag)
+                continue
+
+            if is_debate_tag:
+                tag["title"] = tag["text"]
+                del tag["text"]
+
+            tag_priority = get_debate_priority(tag_class)
+            if tag_priority >= current_priority:
+                if child_debate:
+                    parent_debate["debates"].append(child_debate)
+                if parent_debate:
+                    bill_debates.append(parent_debate)
+
+                current_priority = tag_priority
+                child_debate = {}
+                parent_debate = {}
+                parent_debate.update(tag)
+                parent_debate["debates"] = []
+
+            elif tag_class in ["Debate", "SubDebate"]:
+                if child_debate:
+                    parent_debate["debates"].append(child_debate)
+                    child_debate = {}
+
+                child_debate.update(tag)
+                child_debate["speeches"] = []
+
+            elif tag_id == VOTE:
+                parent_debate.setdefault("voting", [])
+                parent_debate["voting"].append(tag)
+                # todo: end bill debate at end of voting
+
+            elif child_debate:
+                assert tag_id != BILL_DEBATE
+                child_debate["speeches"].append(tag)
+
+            else:
+                assert tag_id != BILL_DEBATE
+                parent_debate["debates"].append(tag)
+
+        # append to the end
+        # TODO: FIX THIS APPENDING EMPTY
+        if child_debate:
+            parent_debate["debates"].append(child_debate)
+        if parent_debate:
+            bill_debates.append(parent_debate)
+
+        parsed_tags[i] = bill_debates
+
+    return parsed_tags
+
+
+
 def parse_all_html(html_tags):
     flat_parsed_tags = []
 
@@ -168,12 +263,14 @@ def parse_all_html(html_tags):
 
         curr_grouping.append(parsed_tag)
 
-    speakers_filled = fill_speaker(resturctured_tags)
+    list_concat = concat_list_tags(resturctured_tags)
+    speakers_filled = fill_speaker(list_concat)
     for section in speakers_filled:
         for tag in section:
             if "raw_tag" in tag:
                 del tag["raw_tag"]
     speakers_split = split_speaker_subtext(speakers_filled)
     q_and_a_grouped = q_and_a_grouper(speakers_split)
+    bill_debate_grouped = bill_debate_grouper(q_and_a_grouped)
 
-    return q_and_a_grouped
+    return bill_debate_grouped
