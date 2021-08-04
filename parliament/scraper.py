@@ -31,6 +31,7 @@ def split_speaker_subtext(parsed_tags):
 def fill_speaker(parsed_tags):
     for section in parsed_tags:
         current_speaker = ""
+        current_subtitle = ""
         for tag in section:
             # skip interjection
             tag_id = tag.get("tag_id",)
@@ -41,10 +42,12 @@ def fill_speaker(parsed_tags):
             tag_speaker = tag.get("speaker",)
             if tag_speaker is not None:
                 current_speaker = tag_speaker
+                current_subtitle = tag.get("speaker_subtitle", "")
                 continue
 
             if tag_id in [SPEECH, CONT_SPEECH] and current_speaker:
                 tag["speaker"] = current_speaker
+                tag["speaker_subtitle"] = current_subtitle
                 tag["filled_speaker"] = True
 
     return parsed_tags
