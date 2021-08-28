@@ -2,7 +2,7 @@ import re
 from pprint import pprint
 
 from parliament.tags import parse_tags_to_dict
-from parliament.structure import BILL_DEBATE, State, INTERJECTION, QUESTION, ANSWER, CONT_SPEECH, SPEECH, NOTE, LIST, VOTE, DEBATE, lookup_tag_type
+from parliament.structure import BILL_DEBATE, State, INTERJECTION, QUESTION, ANSWER, CONT_SPEECH, SPEECH, NOTE, LIST, VOTE, DEBATE, MARGIN
 
 
 def parse_speaker_brackets(speaker_text):
@@ -98,7 +98,8 @@ def q_and_a_grouper(parsed_tags):
                 INTERJECTION,
                 CONT_SPEECH,
                 SPEECH,
-                NOTE]
+                NOTE,
+                MARGIN]
 
             # adding in current support answer
             if (current_sup_question
@@ -146,6 +147,10 @@ def q_and_a_grouper(parsed_tags):
                 current_sup_question["answers"] = []
 
             elif tag_class == "SupAnswer":
+                if "answers" not in current_sup_question:
+                    print("error in parsing, no `answers` field...")
+
+                current_sup_question.setdefault("answers", [])
                 current_sup_question["answers"].append(tag)
 
             else:
@@ -250,6 +255,8 @@ def parse_all_html(html_tags):
     flat_parsed_tags = []
 
     for section in html_tags:
+        if not section:
+            continue
         parsed_section = parse_tags_to_dict(section, return_bs4_tag=True)
         parsed_section.append({ "class": "EndOfSection" })
         flat_parsed_tags += parsed_section

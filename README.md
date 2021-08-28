@@ -41,3 +41,5 @@ Check `example_out.json` for an example of the output format.
     * `parliament` module and submodules need better naming and documentation
 * All report links can be crawled, see `notebooks/crawler.ipynb`
 * Vote parsing needs to be properly re-implemented
+* Needs to be more robust to tag pairs being broken up (i.e. SubsQuestion and SubsAnswer)
+    * need to setdefault on expected keys + log the error

@@ -35,7 +35,7 @@ def has_speaker(tag_text):
 
 def get_speaker(tag_text):
     # 100 char limit on how early a : can appear
-    if not has_speaker(tag_text[:50]):
+    if not has_speaker(tag_text[:100]):
         return None, tag_text
 
     # split on : for speaker
